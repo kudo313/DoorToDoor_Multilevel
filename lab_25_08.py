@@ -19,15 +19,14 @@ numberOfCus  = 10
 numberOfDepot = 1
 minDis = 1000000000
 nearestPoint = 0
-D = 4*60
+D = 8*60
 depot = 0 # repair something with 0 by depot
 timeRateTech = 1/0.58
 timeRateDrone = 1/0.83
 edurance = 30
-N_Technican = 3
-N_Technican_max = 3
+N_Technican = 5
 # read data from txt
-f_name = "20.20.2"
+f_name = "50.20.2"
 f_name_file = f_name + ".txt"
 fileName =  f_name + "_" + str(int(time.time())) + "_version2" + ".xlsx"
 f = open("./data/" + f_name_file,"r")
@@ -187,7 +186,7 @@ while total_new_point - 1 > N_Technican:
         if len(closet_point) > 0:
             unmatched = True
             for i in closet_point:
-                if i in unmatched_list:
+                if i in unmatched_list and total_tmp_point - 2 >= N_Technican:
                     matched_point = (found_point, i)
                     list_matched_point[total_new_point] = matched_point
                     new_coor = [(current_coor_matrix[found_point][0] + current_coor_matrix[i][0])/2, (current_coor_matrix[found_point][1] + current_coor_matrix[i][1])/2]
@@ -195,6 +194,7 @@ while total_new_point - 1 > N_Technican:
                     unmatched_list.remove(found_point)
                     unmatched_list.remove(i)
                     total_new_point += 1
+                    total_tmp_point -= 1
                     unmatched = False
                     break
             if unmatched == True:
@@ -257,7 +257,6 @@ if lowest_total_customer == N_Technican:
     rand_point_get_by_drone = random.randrange(1, lowest_total_customer + 1)
     drone_lowest_routes = [[0]]
     drone_lowest_routes[0].append(rand_point_get_by_drone)
-print(total_level)
 previous_tech_routes = copy.deepcopy(tech_lowest_route)
 previous_drone_routes = copy.deepcopy(drone_lowest_routes)
 
@@ -265,6 +264,7 @@ previous_drone_routes = copy.deepcopy(drone_lowest_routes)
 def fitness(ListMoveTech, RoutesDrone, Visited):
     global alpha1, alpha2, beta, feasible, N_Technican, feasibleWithDroneEdurance, feasibleWithMaximumWorking
     # create variable
+    totalPoint = 1
     for i in range(len(ListMoveTech)):
         for j in range(1, len(ListMoveTech[i])):
             if ListMoveTech[i][j] != 0:
@@ -289,7 +289,6 @@ def fitness(ListMoveTech, RoutesDrone, Visited):
     totalDurationViolation = 0
     totalWorkingTimeViolation = 0
     #
-    # print(ListMoveTech)
     for i in range(N_Technican_temp):
         N_PointOfTechRoute = len(ListMoveTech[i])
         timeOfTech = 0
@@ -408,7 +407,7 @@ def insertPointInRelocation(ListMoveTech, RoutesDrone, Visited, insertPoint, the
     bestFitnessTemp = fitness(newListMove, RoutesDrone, Visited)
     rs = (RoutesDrone, Visited, bestFitnessTemp)
     # create variable
-    totalPoint = 0
+    totalPoint = 1
     for i in range(len(ListMoveTech)):
         for j in range(1, len(ListMoveTech[i])):
             if ListMoveTech[i][j] != 0:
@@ -758,15 +757,24 @@ def insertPointInRelocation(ListMoveTech, RoutesDrone, Visited, insertPoint, the
                             rs = (copyRoutesOfDrone, copyVisitedPoint, bestFitnessTemp)
     return rs
 
+def deleteEmptyRoute(allRoutes):
+    routeIndex = 0
+    while routeIndex != len(allRoutes):
+        if len(allRoutes[routeIndex]) <= 1:
+            allRoutes.remove(allRoutes[routeIndex])
+        else:
+            routeIndex += 1
+    return allRoutes
+
 print(dict_matched_point)
 # Multilevel
-for level in range(total_level, 0, -1):
+for level in range(total_level - 1, -1, -1):
     # inherit from previous level
     ListMoveOfTech = []
     allRouteOfDrones = []
     totalPoint = dict_total_point[level]
     visited = np.zeros(totalPoint, int)
-    list_matched_point = dict_matched_point[level]
+    list_matched_point = dict_matched_point[level + 1]
     for i in range(len(previous_tech_routes)):
         tmp_routes = [0]
         for j in range(1, len(previous_tech_routes[i])):
@@ -783,6 +791,10 @@ for level in range(total_level, 0, -1):
             point = previous_drone_routes[i][j]
             visited[point] = 1
     pass
+    # change value of data level by level
+    distanceMatrix = copy.deepcopy(dict_distance_matrix[level])
+    timeTechMatrix = copy.deepcopy(dict_time_tech_matrix[level])
+    timeDroneMatrix = copy.deepcopy(dict_time_drone_matrix[level])
     # Refine current level
     # parameter and variable for tabu search
     numberOfCus = totalPoint - 1
@@ -801,7 +813,7 @@ for level in range(total_level, 0, -1):
     deltaR = 0.4
     intervalRoutingMove = [int(numberOfCus*N_Technican/a1), int(numberOfCus*N_Technican/a2)]
     intervalSamplingMove = [int(numCusInDroneRange*D/edurance*a3), int(numCusInDroneRange*D/edurance*a4)]
-
+    bestFitness = 100000000000
     tabuList = [[], [], [], [], []]
     iterationDestroyTabu = [[], [], [], [], []]
     tabuStatus = []
@@ -811,7 +823,7 @@ for level in range(total_level, 0, -1):
     ITnotImprovedWithITr = 0
     totalIT = 0
     bestIT = 0
-    numIT = 237
+    numIT = 300
     ITr = 5 
     while True:
         if iterationIndex > 300:
@@ -875,7 +887,6 @@ for level in range(total_level, 0, -1):
         # selectedNeighbor = 2
         if selectedNeighbor == 1:
             #relocation move
-            print("relocation")
             nameOfNeighbor = "relocation"
             bestLocalSolution = [ListMoveOfTech, allRouteOfDrones, visited]
             for i in range(N_Technican):
@@ -1118,7 +1129,6 @@ for level in range(total_level, 0, -1):
 
         elif selectedNeighbor == 2:
             #exchange move
-            print("exchange move")
             nameOfNeighbor = "exchange move"
             bestLocalSolution = [ListMoveOfTech, allRouteOfDrones, visited]
             for i in range(N_Technican):
@@ -1378,7 +1388,6 @@ for level in range(total_level, 0, -1):
                 bestFitness = bestLocalFitness
                 improvedSolution = True
         elif selectedNeighbor == 3:
-            print("2 opt")
             nameOfNeighbor = "2 opt"
             bestLocalSolution = [ListMoveOfTech, allRouteOfDrones, visited]
             excuted = False
@@ -1419,6 +1428,7 @@ for level in range(total_level, 0, -1):
                                         deletePoint = ListMoveOfTech[i][j + 1 +u]
                                         if visited[deletePoint] == 1:
                                             RouteOfDelPoint = TheDroneRouteOfPoint[deletePoint]
+
                                             copyRoutesOfDrone[RouteOfDelPoint].remove(deletePoint)
                                             copyVisitedPoint[deletePoint] = 0
                                     #
@@ -1606,7 +1616,6 @@ for level in range(total_level, 0, -1):
         elif selectedNeighbor == 4:
             bestLocalSolution = [ListMoveOfTech, allRouteOfDrones, visited]
             #deletion move
-            print("deletion")
             nameOfNeighbor = "deletion"
             excuted = False
             # remove a point from drone trip
@@ -1656,7 +1665,6 @@ for level in range(total_level, 0, -1):
                 continue
         else:
             #insertion move
-            print("insertion")
             nameOfNeighbor = "insertion"
             bestLocalSolution = [ListMoveOfTech, allRouteOfDrones, visited]
             excuted = False
@@ -1828,4 +1836,8 @@ for level in range(total_level, 0, -1):
         # if ITnotImproved >= ITmax:
         #     break
         if iterationIndex > numIT:
-            break                       
+            break           
+    previous_tech_routes = copy.deepcopy(bestSolution[0])
+    previous_drone_routes = copy.deepcopy(bestSolution[1])
+print(bestSolution)
+                
