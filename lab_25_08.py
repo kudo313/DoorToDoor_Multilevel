@@ -26,7 +26,7 @@ timeRateDrone = 1/0.83
 edurance = 30
 N_Technican = 5
 # read data from txt
-f_name = "50.20.2"
+f_name = "50.40.1"
 f_name_file = f_name + ".txt"
 fileName =  f_name + "_" + str(int(time.time())) + "_version2" + ".xlsx"
 f = open("./data/" + f_name_file,"r")
